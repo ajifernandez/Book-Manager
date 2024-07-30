@@ -206,11 +206,12 @@ class BulkEditLocationForm(FlaskForm):
 @app.route('/bulk_edit_location', methods=['POST'])
 def bulk_edit_location():
     form = BulkEditLocationForm()
-    book_ids = request.form.getlist('book_ids')
+    book_ids = request.form.getlist('book_ids[]')
+    if book_ids:
 
-    if request.method == 'POST' and book_ids:
-        book_ids_str = ','.join(book_ids)
-        return render_template('bulk_edit_location.html', form=form, book_ids=book_ids_str)
+        if request.method == 'POST' and book_ids:
+            book_ids_str = ','.join(book_ids)
+            return render_template('bulk_edit_location.html', form=form, book_ids=book_ids_str)
 
     return redirect(url_for('index'))
 
@@ -219,7 +220,7 @@ def bulk_edit_location():
 def update_bulk_location():
     form = BulkEditLocationForm()
     if form.validate_on_submit():
-        book_ids = form.book_ids.data.split(',')
+        book_ids = form.book_ids.raw_data[1].split(',')
         new_location = form.location.data
 
         books = read_books()

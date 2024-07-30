@@ -34,7 +34,7 @@
             <tbody>
             {% for book in books %}
             <tr>
-                <td><input type="checkbox" name="book_ids" value="{{ book.id }}"></td>
+                <td><input type="checkbox" name="book_ids[]" value="{{ book.id }}"></td>
 
                 <td>{{ book.id }}</td>
                 {% if book.thumbnail %}
