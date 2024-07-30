@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan Book</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        video, canvas {
+            width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 class="mt-4">Scan Book</h1>
+    <!-- Selección de cámara -->
+    <div class="form-group">
+        <label for="cameraSelect">Select Camera</label>
+        <select id="cameraSelect" class="form-control"></select>
+    </div>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <form id="scan-form" method="POST" action="{{ url_for('scan_process') }}">
+        <input type="hidden" name="frame" id="frame">
+    </form>
+    <!-- Div para mostrar el resultado -->
+    <div id="result" class="mt-3"></div>
+</div>
+<script>
+    // Función para obtener las cámaras disponibles
+    function getCameras() {
+        navigator.mediaDevices.enumerateDevices()
+            .then(function (devices) {
+                const cameraSelect = document.getElementById('cameraSelect');
+                cameraSelect.innerHTML = ''; // Limpiar opciones anteriores
+                devices.forEach(function (device) {
+                    if (device.kind === 'videoinput') {
+                        const option = document.createElement('option');
+                        option.value = device.deviceId;
+                        option.text = device.label || 'Camera ' + (cameraSelect.length + 1);
+                        cameraSelect.appendChild(option);
+                    }
+                });
+                // Verifica si hay cámaras disponibles y selecciona la primera
+                if (cameraSelect.options.length > 0) {
+                    cameraSelect.value = cameraSelect.options[0].value;
+                    cameraSelect.dispatchEvent(new Event('change'));
+                } else {
+                    console.log('No video input devices found.');
+                    showResult('No cameras found.');
+                }
+            })
+            .catch(function (error) {
+                console.error('Error enumerating devices:', error);
+                showResult('Error accessing video input devices.');
+            });
+    }
+
+    // Función para iniciar el flujo de video
+    function startCamera(deviceId) {
+        navigator.mediaDevices.getUserMedia({
+            video: { deviceId: deviceId, facingMode: 'environment', width: 1280, height: 720 }
+        })
+        .then(function (stream) {
+            var video = document.getElementById('video');
+            video.srcObject = stream;
+            video.onloadedmetadata = function () {
+                video.play();
+                console.log('Video playing');
+                // Ajustar el tamaño del canvas para que coincida con el tamaño del video
+                var canvas = document.getElementById('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                // Captura un frame cada 5 segundos
+                setInterval(captureFrame, 5000);
+            };
+        })
+        .catch(function (error) {
+            console.error('Error accessing the camera:', error);
+            showResult('Error accessing the camera.');
+        });
+    }
+
+    // Función para capturar el frame del video
+    function captureFrame() {
+        var canvas = document.getElementById('canvas');
+        var video = document.getElementById('video');
+        var context = canvas.getContext('2d');
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        var dataURL = canvas.toDataURL('image/png');
+        document.getElementById('frame').value = dataURL;
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "{{ url_for('scan_process') }}", true);
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                var response = JSON.parse(xhr.responseText);
+                if (response?.isbn) {
+                    showResult('ISBN detected: ' + response.isbn);
+                } else {
+                    showResult('No ISBN detected.');
+                }
+            }
+        };
+        xhr.send("frame=" + encodeURIComponent(dataURL));
+    }
+
+    // Función para mostrar el resultado
+    function showResult(message) {
+        var resultDiv = document.getElementById('result');
+        resultDiv.textContent = message;
+    }
+
+    // Evento para cambiar de cámara
+    document.getElementById('cameraSelect').addEventListener('change', function (event) {
+        const deviceId = event.target.value;
+        startCamera(deviceId);
+    });
+
+    // Inicializar con la lista de cámaras disponibles
+    getCameras();
+</script>
+</body>
+</html>

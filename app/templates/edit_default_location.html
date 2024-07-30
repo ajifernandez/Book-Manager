@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit Default Location</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+    <h1 class="mt-4">Edit Default Location</h1>
+    <form method="post" action="{{ url_for('edit_default_location') }}">
+        <div class="form-group">
+            <label for="default_location">Default Location</label>
+            <input type="text" class="form-control" id="default_location" name="default_location" value="{{ default_location }}">
+        </div>
+        <button type="submit" class="btn btn-primary">Update</button>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+</body>
+</html>

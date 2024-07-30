@@ -1,16 +1,23 @@
 import csv
+import os
 import threading
+import time
 
 import cv2
 import requests
-from flask import render_template, redirect, url_for, request
+from flask import render_template, redirect, url_for, request, jsonify
 from pyzbar.pyzbar import decode
 
 from app import app
 from app.csv_utils import read_books, add_book, get_next_id, delete_book, get_map_books, update_book
-from app.forms import BookForm
+from app.forms import BookForm, BulkEditLocationForm
 
 camera_running = True
+
+
+def start_camera():
+    camera_thread_instance = threading.Thread(target=camera_thread)
+    camera_thread_instance.start()
 
 
 def get_book_info(isbn):
@@ -49,57 +56,70 @@ def get_book_info(isbn):
     return title, authors, thumbnail, location
 
 
-def camera_thread():
-    global camera_running
-    cap = cv2.VideoCapture(0)
-    # if not cap.isOpened():
-    #     print("No se pudo acceder a la cámara.")
-    #     return
+def save_thumbnail(thumbnail_url, isbn):
+    if thumbnail_url:
+        response = requests.get(thumbnail_url)
+        if response.status_code == 200:
+            os.makedirs('app/static/thumbnails', exist_ok=True)
+            thumbnail_path = os.path.join('app/static/thumbnails', f"{isbn}.jpg")
+            with open(thumbnail_path, 'wb') as file:
+                file.write(response.content)
+            return f"thumbnails/{isbn}.jpg"
+    return 'no_thumbnail.png'
 
-    while camera_running:
-        ret, frame = cap.read()
-        # if not ret:
-        #     break
 
-        decoded_objects = decode(frame)
-        for obj in decoded_objects:
-            barcode_data = obj.data.decode('utf-8')
+import base64
+
+import numpy as np
+
+
+@app.route('/scan_process', methods=['POST'])
+def scan_process():
+    data_url = request.form['frame']
+    header, encoded = data_url.split(",", 1)
+    np_img = np.frombuffer(base64.b64decode(encoded), np.uint8)
+    img = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
+    # Verificar el tamaño de la imagen
+    # height, width = img.shape[:2]
+    # print(f"Image size: {width}x{height}")
+    # # Guardar el frame en un archivo
+    # timestamp = int(time.time())
+    # filename = f'app/static/frames/frame_{timestamp}.png'
+    # cv2.imwrite(filename, img, [cv2.IMWRITE_PNG_COMPRESSION, 0])
+
+    try:
+        barcodes = decode(img)
+        for barcode in barcodes:
+            isbn = barcode.data.decode('utf-8')
 
             book_map = get_map_books()
-            if barcode_data in book_map:
-                print(f"El libro con ISBN {barcode_data} ya está en la lista.")
+            if isbn in book_map:
+                print(f"El libro con ISBN {isbn} ya está en la lista.")
             else:
-                title, authors, thumbnail, location = get_book_info(barcode_data)
+                title, authors, thumbnail, location = get_book_info(isbn)
                 if title and authors:
                     book = {
                         'id': get_next_id(),
                         'title': title,
                         'author': authors,
-                        'isbn': barcode_data,
-                        'thumbnail': save_thumbnail(thumbnail, barcode_data) if barcode_data else '',
+                        'isbn': isbn,
+                        'thumbnail': save_thumbnail(thumbnail, isbn) if isbn else '',
                         'location': location
                     }
                     add_book(book)
+                    return jsonify({'isbn': isbn, 'title': title, 'author': authors, 'thumbnail': thumbnail})
                 else:
                     # No se encontró información del libro, sigue capturando
                     print("No se encontró información del libro.")
-
-        cv2.imshow('Barcode Scanner', frame)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            camera_running = False
-
-            cap.release()
-            cv2.destroyAllWindows()
-
-    cap.release()
-    cv2.destroyAllWindows()
+            return jsonify({'isbn': isbn})
+    except Exception as e:
+        pass
+    return jsonify({'isbn': 'Searching...'})
 
 
 @app.route('/scan')
 def scan():
-    start_camera()
-    return redirect(url_for('index'))
+    return render_template('scan.html')
 
 
 @app.route('/')
@@ -129,18 +149,6 @@ def edit_book_view(book_id):
         return redirect(url_for('index'))
 
     return render_template('edit_book.html', form=form)
-
-
-def save_thumbnail(thumbnail_url, isbn):
-    if thumbnail_url:
-        response = requests.get(thumbnail_url)
-        if response.status_code == 200:
-            os.makedirs('app/static/thumbnails', exist_ok=True)
-            thumbnail_path = os.path.join('app/static/thumbnails', f"{isbn}.jpg")
-            with open(thumbnail_path, 'wb') as file:
-                file.write(response.content)
-            return f"thumbnails/{isbn}.jpg"
-    return 'no_thumbnail.png'
 
 
 @app.route('/add', methods=['GET', 'POST'])
@@ -176,11 +184,6 @@ def delete_book_view(book_id):
     return redirect(url_for('index'))
 
 
-def start_camera():
-    camera_thread_instance = threading.Thread(target=camera_thread)
-    camera_thread_instance.start()
-
-
 @app.route('/search')
 def search_books():
     query = request.args.get('query', '').lower()
@@ -188,19 +191,6 @@ def search_books():
     if query:
         books = [book for book in books if query in book['title'].lower() or query in book['author'].lower()]
     return render_template('index.html', books=books)
-
-
-# Agregamos al inicio las importaciones necesarias
-from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, HiddenField
-from wtforms.validators import DataRequired
-
-
-# Definimos un nuevo formulario para la edición múltiple
-class BulkEditLocationForm(FlaskForm):
-    location = StringField('New Location', validators=[DataRequired()])
-    book_ids = HiddenField()
-    submit = SubmitField('Update Locations')
 
 
 @app.route('/bulk_edit_location', methods=['POST'])
@@ -239,11 +229,10 @@ def update_bulk_location():
     return render_template('bulk_edit_location.html', form=form, book_ids=form.book_ids.data)
 
 
-if __name__ == '__main__':
-    import os
-
-    SECRET_KEY = os.urandom(32)
-    app.config['SECRET_KEY'] = SECRET_KEY
-
-    # start_camera()
-    app.run(debug=True)
+@app.route('/edit_default_location', methods=['GET', 'POST'])
+def edit_default_location():
+    if request.method == 'POST':
+        new_location = request.form['default_location']
+        app.config['DEFAULT_LOCATION'] = new_location
+        return redirect(url_for('index'))
+    return render_template('edit_default_location.html', default_location=app.config.get('DEFAULT_LOCATION', 'Unknown'))
