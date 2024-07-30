@@ -1,0 +1,7 @@
+Flask
+Flask-WTF
+Werkzeug
+WTForms
+opencv-python
+pyzbar
+requests

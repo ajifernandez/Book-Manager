@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Book Manager</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+    <h1 class="mt-4">Book Manager</h1>
+    <form method="get" action="{{ url_for('search_books') }}" class="form-inline mb-3">
+        <input class="form-control mr-sm-2" type="search" placeholder="Search by title or author" aria-label="Search"
+               name="query">
+        <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary my-2 my-sm-0 ml-2">Clear Filter</a>
+    </form>
+
+    <a href="{{ url_for('add_book_view') }}" class="btn btn-primary mb-3">Add Book</a>
+    <a href="{{ url_for('scan') }}" class="btn btn-primary mb-3">Scan ISBN</a>
+    <form method="post" action="{{ url_for('bulk_edit_location') }}">
+        <table class="table table-striped">
+            <thead>
+            <tr>
+                <th><input type="checkbox" id="select-all"></th>
+                <th>ID</th>
+                <th>THUMBNAIL</th>
+                <th>Title</th>
+                <th>Author</th>
+                <th>ISBN</th>
+                <th>Location</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for book in books %}
+            <tr>
+                <td><input type="checkbox" name="book_ids" value="{{ book.id }}"></td>
+
+                <td>{{ book.id }}</td>
+                {% if book.thumbnail %}
+                <td style="width: 20px"><img width="30" class="card-img-top"
+                                             src="{{ url_for('static', filename=book.thumbnail) }}" alt={{book.title}}">
+                </td>
+                {% else %}
+                <td style="width: 20px"><img width="30" class="card-img-top"
+                                             src="{{ url_for('static', filename='no_thumbnail.png') }}"
+                                             alt="No Thumbnail">
+                </td>
+                {% endif %}
+                <td>{{ book.title }}</td>
+                <td>{{ book.author }}</td>
+                <td>{{ book.isbn }}</td>
+                <td>{{ book.location }}</td>
+                <td>
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('edit_book_view', book_id=book.id) }}" class="btn btn-warning btn-sm mr-2">Edit</a>
+                        <a href="{{ url_for('delete_book_view', book_id=book.id) }}"
+                           class="btn btn-danger btn-sm">Delete</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <button type="submit" class="btn btn-secondary">Edit Selected Locations</button>
+
+    </form>
+    <!--    <div class="row">-->
+    <!--      {% for book in books %}-->
+    <!--        <div class="col-md-4 mb-3">-->
+    <!--          <div class="card">-->
+    <!--            {% if book.thumbnail %}-->
+    <!--              <img class="card-img-top" src="{{ url_for('static', filename=book.thumbnail) }}" alt="Book Thumbnail">-->
+    <!--            {% else %}-->
+    <!--              <img class="card-img-top" src="{{ url_for('static', filename='no_thumbnail.png') }}" alt="No Thumbnail">-->
+    <!--            {% endif %}-->
+    <!--            <div class="card-body">-->
+    <!--              <h5 class="card-title">{{ book.title }}</h5>-->
+    <!--              <p class="card-text">Author: {{ book.author }}</p>-->
+    <!--              <p class="card-text">ISBN: {{ book.isbn }}</p>-->
+    <!--              <a href="{{ url_for('delete_book_view', book_id=book.id) }}" class="btn btn-danger">Delete</a>-->
+    <!--            </div>-->
+    <!--          </div>-->
+    <!--        </div>-->
+    <!--      {% endfor %}-->
+    <!--    </div>-->
+</div>
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+<script>
+    document.getElementById('select-all').onclick = function () {
+        var checkboxes = document.getElementsByName('book_ids');
+        for (var checkbox of checkboxes) {
+            checkbox.checked = this.checked;
+        }
+    }
+</script>
+</body>
+</html>
