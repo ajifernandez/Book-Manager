@@ -1,5 +1,5 @@
 # Utiliza una imagen base de Python
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 # Establece el directorio de trabajo
 WORKDIR /app
@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 5000
 
 # Comando para correr la aplicación
-CMD ["python", "app.py"]
+CMD ["python", "run.py"]
