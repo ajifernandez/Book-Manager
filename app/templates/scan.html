@@ -73,8 +73,8 @@
                 var canvas = document.getElementById('canvas');
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
-                // Captura un frame cada 5 segundos
-                setInterval(captureFrame, 5000);
+                // Captura un frame cada 1 segundos
+                setInterval(captureFrame, 1000);
             };
         })
         .catch(function (error) {
