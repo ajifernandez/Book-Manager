@@ -1,4 +1,7 @@
 import csv
+import os
+
+import app
 
 
 def read_books():
@@ -67,9 +70,9 @@ def update_book(updated_book):
         writer.writerows(books)
 
 
-def delete_book(book_id):
+def delete_book(book_to_delete):
     books = read_books()
-    books = [book for book in books if int(book['id']) != book_id]
+    books = [book for book in books if book['id'] != book_to_delete['id']]
     with open('books.csv', mode='w', newline='') as file:
         fieldnames = ['id', 'title', 'author', 'isbn', 'thumbnail', 'location']
         writer = csv.DictWriter(file, fieldnames=fieldnames)

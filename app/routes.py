@@ -34,7 +34,7 @@ def get_book_info(isbn):
             title = book_data.get("title", "Unknown Title")
             authors = ", ".join(book_data.get("authors", []))
             thumbnail = book_data.get("imageLinks", {}).get("thumbnail", "")
-            location = book_data.get('location', 'Unknown location')
+            location = app.config.get("DEFAULT_LOCATION")
 
     # Si falta autor o thumbnail, intentar obtener información del libro desde Open Library
     if not authors or not thumbnail:
@@ -180,7 +180,15 @@ def add_book_view():
 
 @app.route('/delete/<int:book_id>')
 def delete_book_view(book_id):
-    delete_book(book_id)
+    books = read_books()
+    book_to_delete = next((book for book in books if book['id'] == str(book_id)), None)
+    if book_to_delete:
+        if book_to_delete.get('thumbnail'):
+            thumbnail_path = os.path.join('app/static', book_to_delete['thumbnail'])
+            if os.path.exists(thumbnail_path):
+                os.remove(thumbnail_path)
+
+        delete_book(book_to_delete)
     return redirect(url_for('index'))
 
 
