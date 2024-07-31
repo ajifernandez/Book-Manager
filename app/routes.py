@@ -1,11 +1,13 @@
 import csv
+import io
 import os
 import threading
-import time
+import zipfile
 
 import cv2
 import requests
 from flask import render_template, redirect, url_for, request, jsonify
+from flask import send_file
 from pyzbar.pyzbar import decode
 
 from app import app
@@ -153,27 +155,29 @@ def edit_book_view(book_id):
 
 @app.route('/add', methods=['GET', 'POST'])
 def add_book_view():
-    isbn = request.args.get('isbn')
-    error = request.args.get('error')
     form = BookForm()
+    isbn = request.args.get('isbn') or form.isbn.data
+    location = form.location.data
+    error = request.args.get('error')
 
     if isbn:
         # Si se pasa un ISBN a través de parámetros, pre-llenar el formulario
-        title, author, thumbnail, location = get_book_info(isbn)
-        form.isbn.data = isbn
+        title, author, thumbnail, _ = get_book_info(isbn)
+        # form.isbn.data = isbn
         # form.title.data = title
         # form.author.data = author
 
-        if form.validate_on_submit():
-            book = {
-                'id': get_next_id(),
-                'title': title,
-                'author': author,
-                'isbn': isbn,
-                'thumbnail': save_thumbnail(thumbnail, isbn) if isbn else ''
-            }
-            add_book(book)
-            return redirect(url_for('index'))
+        # if form.validate_on_submit():
+        book = {
+            'id': get_next_id(),
+            'title': title,
+            'author': author,
+            'isbn': isbn,
+            'thumbnail': save_thumbnail(thumbnail, isbn) if isbn else '',
+            'location': location
+        }
+        add_book(book)
+        return redirect(url_for('index'))
 
     return render_template('add_book.html', form=form, error=error)
 
@@ -244,3 +248,59 @@ def edit_default_location():
         app.config['DEFAULT_LOCATION'] = new_location
         return redirect(url_for('index'))
     return render_template('edit_default_location.html', default_location=app.config.get('DEFAULT_LOCATION', 'Unknown'))
+
+
+@app.route('/download_thumbnails')
+def download_thumbnails():
+    # Obtener todos los libros
+    books_map = get_map_books()
+
+    # Crear un buffer de memoria para escribir el archivo ZIP
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+        for book in books_map.values():
+            thumbnail_path = book.get('thumbnail')
+            if thumbnail_path:
+                thumbnail_path = os.path.join('app/static', thumbnail_path)
+                if os.path.exists(thumbnail_path):
+                    zip_file.write(thumbnail_path, os.path.basename(thumbnail_path))
+
+    # Mover el cursor al principio del buffer
+    zip_buffer.seek(0)
+
+    # Enviar el archivo ZIP como respuesta
+    return send_file(
+        io.BytesIO(zip_buffer.getvalue()),
+        download_name='thumbnails.zip',
+        as_attachment=True,
+        mimetype='application/zip'
+    )
+
+
+@app.route('/download_csv')
+def download_csv():
+    # Obtener todos los libros
+    books_map = get_map_books()
+
+    # Crear un buffer de memoria para escribir el CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Escribir encabezado
+    writer.writerow(['ID', 'Thumbnail', 'Title', 'Author', 'ISBN', 'Location'])
+
+    # Escribir datos de libros
+    for book in books_map.values():
+        writer.writerow(
+            [book['id'], book.get('thumbnail', ''), book['title'], book['author'], book['isbn'], book['location']])
+
+    # Mover el cursor al principio del buffer
+    output.seek(0)
+
+    # Enviar el archivo CSV como respuesta
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8')),
+        download_name='books.csv',
+        as_attachment=True,
+        mimetype='text/csv'
+    )

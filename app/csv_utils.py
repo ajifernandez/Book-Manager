@@ -22,9 +22,11 @@ def get_map_books():
                 isbn = row['isbn']
                 book_map[isbn] = {
                     'id': row['id'],
+                    'isbn': row['isbn'],
                     'title': row['title'],
                     'author': row['author'],
-                    'thumbnail': row.get('thumbnail', '')
+                    'thumbnail': row.get('thumbnail', ''),
+                    'location': row['location']
                 }
     except FileNotFoundError:
         # Handle the case where the file doesn't exist
