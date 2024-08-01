@@ -1,61 +1,22 @@
+import base64
 import csv
 import io
 import os
-import threading
+import pathlib
 import zipfile
 
 import cv2
+import numpy as np
 import requests
-from flask import render_template, redirect, url_for, request, jsonify
+from flask import render_template, redirect, url_for, request, jsonify, flash
 from flask import send_file
 from pyzbar.pyzbar import decode
+from werkzeug.utils import secure_filename
 
 from app import app
-from app.csv_utils import read_books, add_book, get_next_id, delete_book, get_map_books, update_book
+from app.book_apis import get_book_info
+from app.csv_utils import read_books, add_book, get_next_id, delete_book, get_map_books, save_books
 from app.forms import BookForm, BulkEditLocationForm
-
-camera_running = True
-
-
-def start_camera():
-    camera_thread_instance = threading.Thread(target=camera_thread)
-    camera_thread_instance.start()
-
-
-def get_book_info(isbn):
-    # Intentar obtener información del libro desde Google Books
-    google_books_url = f"https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}"
-    response = requests.get(google_books_url)
-    title, authors, thumbnail, location = None, None, None, None
-
-    if response.status_code == 200:
-        data = response.json()
-        print(data)
-        if "items" in data:
-            book_data = data["items"][0]["volumeInfo"]
-            title = book_data.get("title", "Unknown Title")
-            authors = ", ".join(book_data.get("authors", []))
-            thumbnail = book_data.get("imageLinks", {}).get("thumbnail", "")
-            location = app.config.get("DEFAULT_LOCATION")
-
-    # Si falta autor o thumbnail, intentar obtener información del libro desde Open Library
-    if not authors or not thumbnail:
-        open_library_url = f"https://openlibrary.org/api/books?bibkeys=ISBN:{isbn}&format=json&jscmd=data"
-        response = requests.get(open_library_url)
-        if response.status_code == 200:
-            data = response.json()
-            print(data)
-            key = f"ISBN:{isbn}"
-            if key in data:
-                book_data = data[key]
-                if not title:
-                    title = book_data.get("title", "Unknown Title")
-                if not authors:
-                    authors = ", ".join([author["name"] for author in book_data.get("authors", [])])
-                if not thumbnail and "cover" in book_data:
-                    thumbnail = book_data["cover"].get("large", "")
-
-    return title, authors, thumbnail, location
 
 
 def save_thumbnail(thumbnail_url, isbn):
@@ -68,11 +29,6 @@ def save_thumbnail(thumbnail_url, isbn):
                 file.write(response.content)
             return f"thumbnails/{isbn}.jpg"
     return 'no_thumbnail.png'
-
-
-import base64
-
-import numpy as np
 
 
 @app.route('/scan_process', methods=['POST'])
@@ -131,26 +87,39 @@ def index():
 
 
 @app.route('/edit/<int:book_id>', methods=['GET', 'POST'])
-def edit_book_view(book_id):
+def edit_book(book_id):
     books = read_books()
-    book = next((b for b in books if b['id'] == str(book_id)), None)
+    book = next((b for b in books if int(b['id']) == book_id), None)
     if not book:
+        flash('Book not found', 'danger')
         return redirect(url_for('index'))
 
-    form = BookForm(data=book)
+    if request.method == 'POST':
+        thumbnail = ''
+        # Handle file upload
+        if 'new_thumbnail' in request.files:
+            new_thumbnail = request.files['new_thumbnail']
+            if new_thumbnail.filename != '':
+                ext = pathlib.Path(new_thumbnail.filename).suffix
+                filename = secure_filename(f"{book['isbn']}{ext}")
+                new_thumbnail.save(os.path.join('app/static/thumbnails', filename))
+                thumbnail = f'thumbnails/{filename}'
+        else:
+            thumbnail = book.get('thumbnail', '')
 
-    if form.validate_on_submit():
         book.update({
-            'title': form.title.data,
-            'author': form.author.data,
-            'isbn': form.isbn.data,
-            'location': form.location.data,
-            'thumbnail': book.get('thumbnail', '')
+            'title': request.form['title'],
+            'author': request.form['author'],
+            'isbn': request.form['isbn'],
+            'location': request.form['location'],
+            'thumbnail': thumbnail
         })
-        update_book(book)
+        # Save changes to the database
+        save_books(books)
+        flash('Book updated successfully!', 'success')
         return redirect(url_for('index'))
 
-    return render_template('edit_book.html', form=form)
+    return render_template('edit_book.html', book=book)
 
 
 @app.route('/add', methods=['GET', 'POST'])
@@ -160,6 +129,7 @@ def add_book_view():
     location = form.location.data
     error = request.args.get('error')
 
+    # TODO add book without isbn -> isbn will be the 'id'
     if isbn:
         # Si se pasa un ISBN a través de parámetros, pre-llenar el formulario
         title, author, thumbnail, _ = get_book_info(isbn)
@@ -229,13 +199,7 @@ def update_bulk_location():
         for book in books:
             if book['id'] in book_ids:
                 book['location'] = new_location
-
-        with open('books.csv', 'w', newline='') as csvfile:
-            fieldnames = ['id', 'title', 'author', 'isbn', 'thumbnail', 'location']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(books)
-
+        save_books(books)
         return redirect(url_for('index'))
 
     return render_template('bulk_edit_location.html', form=form, book_ids=form.book_ids.data)

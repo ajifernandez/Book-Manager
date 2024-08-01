@@ -65,18 +65,18 @@ def update_book(updated_book):
         if book['id'] == updated_book['id']:
             books[i] = updated_book
             break
-    with open('books.csv', 'w', newline='') as csvfile:
-        fieldnames = ['id', 'title', 'author', 'isbn', 'thumbnail', 'location']
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(books)
+    save_books(books)
 
 
 def delete_book(book_to_delete):
     books = read_books()
     books = [book for book in books if book['id'] != book_to_delete['id']]
-    with open('books.csv', mode='w', newline='') as file:
+    save_books(books)
+
+
+def save_books(books):
+    with open('books.csv', 'w', newline='') as csvfile:
         fieldnames = ['id', 'title', 'author', 'isbn', 'thumbnail', 'location']
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(books)

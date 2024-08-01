@@ -14,15 +14,15 @@
         <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
         <a href="{{ url_for('index') }}" class="btn btn-outline-secondary my-2 my-sm-0 ml-2">Clear Filter</a>
     </form>
+    <a href="{{ url_for('download_csv') }}" class="btn btn-primary mb-3">Download CSV</a>
+    <a href="{{ url_for('download_thumbnails') }}" class="btn btn-primary mb-3">Download Thumbnails</a>
+    <br>
     <a href="{{ url_for('edit_default_location') }}" class="btn btn-primary mb-3">Edit default location</a>
     <a href="{{ url_for('add_book_view') }}" class="btn btn-primary mb-3">Add Book</a>
     <a href="{{ url_for('scan') }}" class="btn btn-primary mb-3">Scan ISBN</a>
-    <a href="{{ url_for('download_csv') }}" class="btn btn-info mb-3">Download CSV</a>
-    <a href="{{ url_for('download_thumbnails') }}" class="btn btn-info mb-3">Download Thumbnails</a>
-    <!-- Botón de descarga de thumbnails -->
 
     <form method="post" action="{{ url_for('bulk_edit_location') }}">
-        <button type="submit" class="btn btn-secondary">Edit Selected Locations</button>
+        <button type="submit" class="btn btn-primary mb-3">Edit Selected Locations</button>
         <table class="table table-striped">
             <thead>
             <tr>
@@ -59,7 +59,7 @@
                     <td>{{ book.location }}</td>
                     <td>
                         <div class="btn-group" role="group">
-                            <a href="{{ url_for('edit_book_view', book_id=book.id) }}"
+                            <a href="{{ url_for('edit_book', book_id=book.id) }}"
                                class="btn btn-warning btn-sm mr-2">Edit</a>
                             <a href="{{ url_for('delete_book_view', book_id=book.id) }}"
                                class="btn btn-danger btn-sm">Delete</a>

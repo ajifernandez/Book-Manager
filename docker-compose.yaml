@@ -1,5 +1,4 @@
-version: '3.8'
-
+version: '3'
 services:
   web:
     build: .
@@ -8,5 +7,5 @@ services:
     volumes:
       - .:/app
     environment:
+      - FLASK_APP=run.py
       - FLASK_ENV=development
-    command: python run.py

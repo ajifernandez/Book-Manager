@@ -1,31 +1,62 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Book</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .thumbnail-option img {
+            width: 100px;
+            height: auto;
+            margin: 5px;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .thumbnail-option img.selected {
+            border-color: blue;
+        }
+    </style>
 </head>
 <body>
 <div class="container">
-    <h1 class="mt-5">Edit Book</h1>
-    <form method="post" action="{{ url_for('edit_book_view', book_id=form.id.data) }}">
-        {{ form.hidden_tag() }}
+    <h1 class="mt-4">Edit Book</h1>
+    <form method="POST" action="{{ url_for('edit_book', book_id=book.id) }}" enctype="multipart/form-data">
         <div class="form-group">
-            {{ form.title.label }} {{ form.title(size = 32, class = "form-control") }}
+            <label for="title">Title</label>
+            <input type="text" class="form-control" id="title" name="title" value="{{ book.title }}">
         </div>
         <div class="form-group">
-            {{ form.author.label }} {{ form.author(size = 32, class = "form-control") }}
+            <label for="author">Author</label>
+            <input type="text" class="form-control" id="author" name="author" value="{{ book.author }}">
         </div>
         <div class="form-group">
-            {{ form.isbn.label }} {{ form.isbn(size = 32, class = "form-control") }}
+            <label for="isbn">ISBN</label>
+            <input type="text" class="form-control" id="isbn" name="isbn" value="{{ book.isbn }}">
         </div>
         <div class="form-group">
-            {{ form.location.label }} {{ form.location(size = 32, class = "form-control") }}
+            <label for="location">Location</label>
+            <input type="text" class="form-control" id="location" name="location" value="{{ book.location }}">
         </div>
         <div class="form-group">
-            {{ form.submit(class = "btn btn-primary") }}
+            <label for="thumbnail">Current Thumbnail</label>
+            <div>
+                {% if book.thumbnail %}
+                    <img src="{{ url_for('static', filename=book.thumbnail) }}" alt="Thumbnail" width="100">
+                {% else %}
+                    <img src="{{ url_for('static', filename='no_thumbnail.png') }}" alt="No Thumbnail" width="100">
+                {% endif %}
+            </div>
         </div>
+        <div class="form-group">
+            <label for="new_thumbnail">Upload New Thumbnail</label>
+            <input type="file" class="form-control-file" id="new_thumbnail" name="new_thumbnail">
+        </div>
+        <div class="form-group">
+            <label for="api_thumbnail">Select Thumbnail from APIs</label>
+            <div id="api_thumbnail" class="thumbnail-option"></div>
+            <input type="hidden" id="selected_thumbnail" name="selected_thumbnail">
+        </div>
+        <button type="submit" class="btn btn-primary">Save</button>
     </form>
 </div>
 </body>
