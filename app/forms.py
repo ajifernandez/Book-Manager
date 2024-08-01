@@ -9,7 +9,7 @@ class BookForm(FlaskForm):
     id = StringField('id')
     title = StringField('Title')
     author = StringField('Author')
-    isbn = StringField('ISBN', validators=[DataRequired()])
+    isbn = StringField('ISBN')
     location = StringField('Location', default=DEFAULT_LOCATION)
     submit = SubmitField('Submit')
 
