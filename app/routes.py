@@ -122,34 +122,44 @@ def edit_book(book_id):
     return render_template('edit_book.html', book=book)
 
 
-@app.route('/add', methods=['GET', 'POST'])
-def add_book_view():
+@app.route('/add_book', methods=['GET', 'POST'])
+def add_book():
     form = BookForm()
-    isbn = request.args.get('isbn') or form.isbn.data
-    location = form.location.data
-    error = request.args.get('error')
+    if request.method == 'POST':
+        title = request.form['title']
+        author = request.form['author']
+        isbn = request.form['isbn']
+        location = request.form['location']
 
-    # TODO add book without isbn -> isbn will be the 'id'
-    if isbn:
-        # Si se pasa un ISBN a través de parámetros, pre-llenar el formulario
-        title, author, thumbnail, _ = get_book_info(isbn)
-        # form.isbn.data = isbn
-        # form.title.data = title
-        # form.author.data = author
+        if 'captured_thumbnail' in request.form:
+            captured_thumbnail = request.form['captured_thumbnail']
+            ext = '.jpg'
+            filename = secure_filename(f"{isbn}{ext}")
+            thumbnail_data = base64.b64decode(captured_thumbnail.split(',')[1])
+            with open(filename, 'wb') as f:
+                f.write(thumbnail_data)
+            thumbnail = f'thumbnails/{filename}'
+        elif 'new_thumbnail' in request.files:
+            new_thumbnail = request.files['new_thumbnail']
+            if new_thumbnail.filename != '':
+                ext = pathlib.Path(new_thumbnail.filename).suffix
+                filename = secure_filename(f"{isbn}{ext}")
+                new_thumbnail.save(os.path.join('app/static/thumbnails', filename))
+                thumbnail = f'thumbnails/{filename}'
+        else:
+            thumbnail = None
 
-        # if form.validate_on_submit():
         book = {
-            'id': get_next_id(),
             'title': title,
             'author': author,
             'isbn': isbn,
-            'thumbnail': save_thumbnail(thumbnail, isbn) if isbn else '',
-            'location': location
+            'location': location,
+            'thumbnail': thumbnail
         }
         add_book(book)
         return redirect(url_for('index'))
 
-    return render_template('add_book.html', form=form, error=error)
+    return render_template('add_book.html', form=form)
 
 
 @app.route('/delete/<int:book_id>')

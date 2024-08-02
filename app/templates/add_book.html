@@ -4,40 +4,90 @@
     <meta charset="UTF-8">
     <title>Add Book</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        video, canvas {
+            width: 100%;
+            height: auto;
+        }
+        #capture-button {
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body>
 <div class="container">
-    <h1 class="mt-4">Add a New Book</h1>
-    {% if request.args.get('error') %}
-    <div class="alert alert-warning">
-        {{ request.args.get('error') }}
-    </div>
-    {% endif %}
-    <form method="POST">
-        {{ form.hidden_tag() }}
+    <h1 class="mt-4">Add Book</h1>
+    <form method="POST" enctype="multipart/form-data" id="add-book-form">
         <div class="form-group">
-            {{ form.title.label(class="form-label") }}
-            {{ form.title(class="form-control", size=32) }}
+            <label for="title">Title</label>
+            <input type="text" class="form-control" id="title" name="title">
         </div>
         <div class="form-group">
-            {{ form.author.label(class="form-label") }}
-            {{ form.author(class="form-control", size=32) }}
+            <label for="author">Author</label>
+            <input type="text" class="form-control" id="author" name="author">
         </div>
         <div class="form-group">
-            {{ form.isbn.label(class="form-label") }}
-            {{ form.isbn(class="form-control", size=32) }}
+            <label for="isbn">ISBN</label>
+            <input type="text" class="form-control" id="isbn" name="isbn">
         </div>
         <div class="form-group">
-            {{ form.location.label(class="form-label") }}
+            <label for="isbn">Location</label>
             {{ form.location(class="form-control", size=32) }}
         </div>
         <div class="form-group">
-            {{ form.submit(class="btn btn-primary") }}
+            <label for="thumbnail">Upload Thumbnail</label>
+            <input type="file" class="form-control-file" id="thumbnail" name="thumbnail">
         </div>
+        <div class="form-group">
+            <button type="button" class="btn btn-secondary" id="open-camera">Open Camera</button>
+            <div>
+                <video id="video" autoplay style="display:none;"></video>
+                <canvas id="canvas" style="display:none;"></canvas>
+                <button type="button" class="btn btn-primary" id="capture-button" style="display:none;">Capture</button>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Book</button>
     </form>
 </div>
-<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
+<script>
+    document.getElementById('open-camera').addEventListener('click', function() {
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureButton = document.getElementById('capture-button');
+        const constraints = { video: true };
+
+        video.style.display = 'block';
+        captureButton.style.display = 'block';
+
+        navigator.mediaDevices.getUserMedia(constraints)
+            .then((stream) => {
+                videoStream = stream;
+                video.srcObject = stream;
+            })
+            .catch((err) => {
+                console.error('Error accessing the camera', err);
+            });
+
+        captureButton.addEventListener('click', function() {
+            canvas.style.display = 'block';
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataURL = canvas.toDataURL('image/png');
+
+            const thumbnailInput = document.createElement('input');
+            thumbnailInput.type = 'hidden';
+            thumbnailInput.name = 'captured_thumbnail';
+            thumbnailInput.value = dataURL;
+            document.getElementById('add-book-form').appendChild(thumbnailInput);
+
+            stream.getTracks().forEach(track => track.stop());
+            video.style.display = 'none';
+            captureButton.style.display = 'none';
+        });
+    });
+</script>
 </body>
 </html>
