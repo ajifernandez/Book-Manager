@@ -123,7 +123,7 @@ def edit_book(book_id):
 
 
 @app.route('/add_book', methods=['GET', 'POST'])
-def add_book():
+def add_book_view():
     form = BookForm()
     if request.method == 'POST':
         title = request.form['title']
